@@ -7,5 +7,8 @@ import {
 
 options(
   "native-stub": [ "process_native.c" ],
-  targets: { "process_native.mbt": [ "native", "llvm" ] },
+  targets: {
+    "process_native.mbt": [ "native", "llvm" ],
+    "process_stub.mbt": [ "wasm-gc", "wasm", "js" ],
+  },
 )
