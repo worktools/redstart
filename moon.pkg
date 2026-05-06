@@ -1,0 +1,10 @@
+import {
+  "tiye/json5",
+  "moonbitlang/x/fs",
+  "moonbitlang/core/json",
+}
+
+options(
+  "native-stub": [ "process_native.c" ],
+  targets: { "process_native.mbt": [ "native", "llvm" ] },
+)

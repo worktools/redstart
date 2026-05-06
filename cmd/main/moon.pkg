@@ -1,7 +1,0 @@
-// import {
-//   "username/redstart" @lib,
-// }
-
-options(
-  "is-main": true,
-)

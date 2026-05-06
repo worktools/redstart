@@ -1,0 +1,29 @@
+name: check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MoonBit
+        uses: hustcer/setup-moonbit@v1
+        # with:
+        #   version: "nightly"
+
+      - name: moon check
+        run: moon update && moon version && moon check --target native
+
+      - name: moon test
+        run: moon test --target native
+
+      - name: moon info
+        run: |
+          moon info
+          git diff --exit-code

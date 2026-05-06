@@ -1,9 +1,13 @@
 {
-  "name": "username/redstart",
+  "name": "tiye/redstart",
   "version": "0.1.0",
+  "deps": {
+    "moonbitlang/x": "0.4.43",
+    "tiye/json5": "0.0.2"
+  },
   "readme": "README.mbt.md",
-  "repository": "",
+  "repository": "https://github.com/tiye/redstart",
   "license": "Apache-2.0",
-  "keywords": [],
-  "description": ""
+  "keywords": ["process-manager", "cli", "native", "devtools"],
+  "description": "Lightweight process manager for local development"
 }
