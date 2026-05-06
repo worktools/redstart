@@ -129,13 +129,13 @@ pub fn load_config() -> Config raise RedstartError {
     raise RedstartError("redstart.json5 not found, run 'redstart init' first")
   }
   let content = @fs.read_file_to_string(config_file) catch {
-    e => raise RedstartError("failed to read config: \{e}")
+    e => raise RedstartError("failed to read config: \{@debug.to_repr(e)}")
   }
   let json = @json5.parse_json(content) catch {
-    e => raise RedstartError("failed to parse config: \{e}")
+    e => raise RedstartError("failed to parse config: \{@debug.to_repr(e)}")
   }
   @json.from_json(json) catch {
-    e => raise RedstartError("failed to decode config: \{e}")
+    e => raise RedstartError("failed to decode config: \{@debug.to_repr(e)}")
   }
 }
 
@@ -145,7 +145,7 @@ pub fn save_config(config : Config) -> Unit raise RedstartError {
   let json = config.to_json()
   let content = json_to_pretty_string(json)
   @fs.write_string_to_file(config_file, content) catch {
-    e => raise RedstartError("failed to write config: \{e}")
+    e => raise RedstartError("failed to write config: \{@debug.to_repr(e)}")
   }
 }
 
@@ -302,7 +302,7 @@ pub fn ensure_monitor_dir(proc : String) -> Unit raise RedstartError {
   let dir = monitor_path(proc)
   if !@fs.path_exists(dir) {
     @fs.create_dir(dir) catch {
-      e => raise RedstartError("failed to create monitor dir: \{e}")
+      e => raise RedstartError("failed to create monitor dir: \{@debug.to_repr(e)}")
     }
   }
 }
@@ -312,7 +312,7 @@ pub fn ensure_monitor_dir(proc : String) -> Unit raise RedstartError {
 pub fn ensure_root_monitor_dir() -> Unit raise RedstartError {
   if !@fs.path_exists(monitor_dir) {
     @fs.create_dir(monitor_dir) catch {
-      e => raise RedstartError("failed to create .redstart-monitor: \{e}")
+      e => raise RedstartError("failed to create .redstart-monitor: \{@debug.to_repr(e)}")
     }
   }
 }
@@ -363,7 +363,7 @@ pub fn read_last_lines(
 ) -> Array[String] raise RedstartError {
   guard @fs.path_exists(path) else { return [] }
   let content = @fs.read_file_to_string(path) catch {
-    e => raise RedstartError("failed to read \{path}: \{e.to_string()}")
+    e => raise RedstartError("failed to read \{path}: \{@debug.to_repr(e)}")
   }
   let all_lines = content.split("\n").map(StringView::to_owned).collect()
   // Remove trailing empty line if present
