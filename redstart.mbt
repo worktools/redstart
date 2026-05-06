@@ -302,7 +302,10 @@ pub fn ensure_monitor_dir(proc : String) -> Unit raise RedstartError {
   let dir = monitor_path(proc)
   if !@fs.path_exists(dir) {
     @fs.create_dir(dir) catch {
-      e => raise RedstartError("failed to create monitor dir: \{@debug.to_repr(e)}")
+      e =>
+        raise RedstartError(
+          "failed to create monitor dir: \{@debug.to_repr(e)}",
+        )
     }
   }
 }
@@ -312,7 +315,10 @@ pub fn ensure_monitor_dir(proc : String) -> Unit raise RedstartError {
 pub fn ensure_root_monitor_dir() -> Unit raise RedstartError {
   if !@fs.path_exists(monitor_dir) {
     @fs.create_dir(monitor_dir) catch {
-      e => raise RedstartError("failed to create .redstart-monitor: \{@debug.to_repr(e)}")
+      e =>
+        raise RedstartError(
+          "failed to create .redstart-monitor: \{@debug.to_repr(e)}",
+        )
     }
   }
 }
