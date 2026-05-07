@@ -1,7 +1,7 @@
 // Copyright 2026 tiye/redstart
 //
 // Native C FFI for process management on POSIX systems.
-// Provides: spawn (posix_spawn), kill, is_alive, now.
+// Provides: spawn (posix_spawn), kill, process-group kill, liveness checks, now.
 
 #ifndef _WIN32
 
@@ -127,6 +127,18 @@ MOONBIT_FFI_EXPORT int32_t redstart_kill(int32_t pid, int32_t sig) {
 }
 
 // ---------------------------------------------------------------------------
+// redstart_kill_process_group
+//
+// Send a signal to an entire process group.
+// Returns 0 on success, -1 on error.
+// ---------------------------------------------------------------------------
+MOONBIT_FFI_EXPORT int32_t redstart_kill_process_group(int32_t pgid,
+                                                       int32_t sig) {
+  if (pgid <= 0) return -1;
+  return (int32_t)kill(-(pid_t)pgid, sig);
+}
+
+// ---------------------------------------------------------------------------
 // redstart_is_alive
 //
 // Check if a process is alive.
@@ -137,6 +149,20 @@ MOONBIT_FFI_EXPORT int32_t redstart_is_alive(int32_t pid) {
   int result = kill((pid_t)pid, 0);
   if (result == 0) return 1;
   if (errno == EPERM) return 1; // process exists but we lack permission
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// redstart_is_process_group_alive
+//
+// Check if any process in the process group is still alive.
+// Returns 1 if alive, 0 if not alive.
+// ---------------------------------------------------------------------------
+MOONBIT_FFI_EXPORT int32_t redstart_is_process_group_alive(int32_t pgid) {
+  if (pgid <= 0) return 0;
+  int result = kill(-(pid_t)pgid, 0);
+  if (result == 0) return 1;
+  if (errno == EPERM) return 1; // process group exists but we lack permission
   return 0;
 }
 

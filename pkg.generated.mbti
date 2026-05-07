@@ -1,0 +1,102 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tiye/redstart"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub let config_file : String
+
+pub fn config_file_exists() -> Bool
+
+pub fn ensure_monitor_dir(String) -> Unit raise RedstartError
+
+pub fn ensure_root_monitor_dir() -> Unit raise RedstartError
+
+pub fn find_process(Config, String) -> ProcessEntry?
+
+pub fn force_kill_process(Int) -> Bool
+
+pub fn format_pid(Int?) -> String
+
+pub fn generate_id(Int64, String) -> String
+
+pub fn is_process_alive(Int) -> Bool
+
+pub fn json_to_pretty_string(Json) -> String
+
+pub fn json_to_string(Json) -> String
+
+pub fn kill_process(Int) -> Bool
+
+pub fn load_config() -> Config raise RedstartError
+
+pub let monitor_dir : String
+
+pub fn monitor_path(String) -> String
+
+pub fn new_config() -> Config
+
+pub fn new_process_entry(String, String, String, String?, Map[String, String], String) -> ProcessEntry
+
+pub fn now() -> Int64
+
+pub fn pid_file_path(String) -> String
+
+pub fn read_last_lines(String, Int) -> Array[String] raise RedstartError
+
+pub fn save_config(Config) -> Unit raise RedstartError
+
+pub fn sleep_ms(Int) -> Unit
+
+pub fn spawn_process(String, String, String, String) -> Int?
+
+pub fn start_with_retry(ProcessEntry, Int) -> (Int, String) raise RedstartError
+
+pub fn stderr_log_path(String) -> String
+
+pub fn stdout_log_path(String) -> String
+
+pub fn stop_gracefully(Int) -> Unit
+
+// Errors
+pub suberror RedstartError {
+  RedstartError(String)
+}
+pub impl Show for RedstartError
+
+// Types and methods
+pub struct Config {
+  version : String
+  mut processes : Array[ProcessEntry]
+} derive(ToJson, @debug.Debug, @json.FromJson)
+pub fn Config::add_process(Self, ProcessEntry) -> Unit
+pub fn Config::remove_process(Self, String) -> Bool
+pub impl Show for Config
+
+pub struct ProcessEntry {
+  id : String
+  proc_name : String
+  command : String
+  cwd : String?
+  env : Map[String, String]
+  created_at : String
+  mut status : String
+  mut pid : Int?
+  mut started_at : String?
+  mut stopped_at : String?
+  mut exit_code : Int?
+  mut retry_count : Int
+} derive(ToJson, @debug.Debug, @json.FromJson)
+pub fn ProcessEntry::mark_failed(Self) -> Unit
+pub fn ProcessEntry::mark_running(Self, Int, String) -> Unit
+pub fn ProcessEntry::mark_stopped(Self, String, Int?) -> Unit
+pub fn ProcessEntry::mark_unknown(Self) -> Unit
+pub impl Show for ProcessEntry
+
+// Type aliases
+
+// Traits
+

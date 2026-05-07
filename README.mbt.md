@@ -103,7 +103,7 @@ redstart wait server -t 60 && curl http://localhost:3000/health
 
 The core library is importable as `tiye/redstart`:
 
-```moonbit
+```moonbit nocheck
 import "tiye/redstart"
 
 let config = @redstart.load_config()!

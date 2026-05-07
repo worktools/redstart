@@ -40,7 +40,13 @@ extern "C" fn ffi_spawn(
 extern "C" fn ffi_kill(pid : Int, sig : Int) -> Int = "redstart_kill"
 
 ///|
+extern "C" fn ffi_kill_process_group(pgid : Int, sig : Int) -> Int = "redstart_kill_process_group"
+
+///|
 extern "C" fn ffi_is_alive(pid : Int) -> Int = "redstart_is_alive"
+
+///|
+extern "C" fn ffi_is_process_group_alive(pgid : Int) -> Int = "redstart_is_process_group_alive"
 
 ///|
 extern "C" fn ffi_sleep_ms(ms : Int) -> Unit = "redstart_sleep_ms"
@@ -95,9 +101,24 @@ pub fn kill_process(pid : Int) -> Bool {
 }
 
 ///|
+fn kill_process_group(pgid : Int) -> Bool {
+  ffi_kill_process_group(pgid, 15) == 0
+}
+
+///|
 /// Send SIGKILL (9) to a process.
 pub fn force_kill_process(pid : Int) -> Bool {
   ffi_kill(pid, 9) == 0
+}
+
+///|
+fn force_kill_process_group(pgid : Int) -> Bool {
+  ffi_kill_process_group(pgid, 9) == 0
+}
+
+///|
+fn is_process_group_alive(pgid : Int) -> Bool {
+  ffi_is_process_group_alive(pgid) == 1
 }
 
 ///|
@@ -137,18 +158,27 @@ pub fn start_with_retry(
 }
 
 ///|
-/// Stop a process gracefully (SIGTERM, then SIGKILL after timeout).
+/// Stop a process group gracefully (SIGTERM, then SIGKILL after timeout).
 pub fn stop_gracefully(pid : Int) -> Unit {
-  ignore(kill_process(pid))
-  // Poll up to 5 seconds (10 x 500ms)
+  if pid <= 0 {
+    return
+  }
+  ignore(kill_process_group(pid))
+  // Poll up to 5 seconds (10 x 500ms) for the whole process group to exit.
   for _ in 0..<10 {
     sleep_ms(500)
-    if !is_process_alive(pid) {
+    if !is_process_group_alive(pid) {
       return
     }
   }
-  // Force kill if still alive
-  if is_process_alive(pid) {
-    ignore(force_kill_process(pid))
+  // Force kill the whole group if any child is still alive.
+  if is_process_group_alive(pid) {
+    ignore(force_kill_process_group(pid))
+    for _ in 0..<10 {
+      sleep_ms(100)
+      if !is_process_group_alive(pid) {
+        return
+      }
+    }
   }
 }
