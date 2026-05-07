@@ -330,7 +330,11 @@ fn start_one(config : @redstart.Config, target : String) -> Unit {
     )
     @sys.exit(1)
   }
-  println("Starting '" + entry.proc_name + "'...")
+  println(
+    "Starting '" +
+    entry.proc_name +
+    "' as a new process group (child processes, if any, will be managed together)...",
+  )
   try {
     let (pid, started_at) = @redstart.start_with_retry(entry, 3)
     entry.mark_running(pid, started_at)
@@ -343,7 +347,12 @@ fn start_one(config : @redstart.Config, target : String) -> Unit {
     @redstart.save_config(config) catch {
       e => println("warning: failed to save config: " + e.to_string())
     }
-    println(" started (pid: " + pid.to_string() + ")")
+    println(" started (process group leader pid: " + pid.to_string() + ")")
+    println(
+      " note: child processes spawned by this command will be stopped and restarted together with '" +
+      entry.proc_name +
+      "'",
+    )
   } catch {
     e => {
       println(" failed")
@@ -402,7 +411,16 @@ fn stop_one(config : @redstart.Config, target : String) -> Unit {
     return
   }
   println(
-    "Stopping '" + entry.proc_name + "' (pid: " + pid.to_string() + ")...",
+    "Stopping '" +
+    entry.proc_name +
+    "' (process group leader pid: " +
+    pid.to_string() +
+    ")...",
+  )
+  println(
+    " this will also stop child processes spawned by '" +
+    entry.proc_name +
+    "', if any",
   )
   @redstart.stop_gracefully(pid)
   entry.mark_stopped(@redstart.now().to_string(), None)
@@ -411,7 +429,7 @@ fn stop_one(config : @redstart.Config, target : String) -> Unit {
   @redstart.save_config(config) catch {
     e => println("warning: failed to save config: " + e.to_string())
   }
-  println(" stopped")
+  println(" stopped process group")
 }
 
 ///|
@@ -426,6 +444,11 @@ fn run_restart(m : @argparse.Matches) -> Unit {
     }
     Some(e) => e
   }
+  println(
+    "Restarting '" +
+    entry.proc_name +
+    "' by replacing its whole process group (including child processes, if any)...",
+  )
   if entry.status == "running" {
     stop_one(config, target)
   }
