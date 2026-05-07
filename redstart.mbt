@@ -33,6 +33,31 @@ pub struct ProcessEntry {
 } derive(ToJson, FromJson, Debug)
 
 ///|
+pub struct ProcessGroupMember {
+  pid : Int
+  ppid : Int
+  pgid : Int
+  command : String
+} derive(ToJson, Debug)
+
+///|
+pub struct ProcessInspectSnapshot {
+  process : ProcessEntry
+  process_group_members : Array[ProcessGroupMember]
+  child_processes : Array[ProcessGroupMember]
+} derive(ToJson, Debug)
+
+///|
+pub fn new_process_group_member(
+  pid : Int,
+  ppid : Int,
+  pgid : Int,
+  command : String,
+) -> ProcessGroupMember {
+  { pid, ppid, pgid, command }
+}
+
+///|
 pub impl Show for ProcessEntry with output(self, logger) {
   let pid_str = match self.pid {
     None => "null"
@@ -181,90 +206,16 @@ pub fn generate_id(now_ts : Int64, seed : String) -> String {
 }
 
 ///|
-/// Serialize Json to compact string (for machine-readable / inspect output).
+/// Serialize Json to compact JSON5 string (for machine-readable / inspect output).
 pub fn json_to_string(json : Json) -> String {
-  @json5.stringify_json(json) catch {
-    _ => "null"
-  }
+  @json5.stringify_json(json)
 }
 
 ///|
-/// Serialize Json to a pretty-printed string with 2-space indentation.
+/// Serialize Json to a pretty-printed JSON5 string with 2-space indentation.
+/// Object keys that are valid JSON5 identifiers are written unquoted.
 pub fn json_to_pretty_string(json : Json) -> String {
-  let buf = StringBuilder::new()
-  json_write_pretty(buf, json, 0)
-  buf.write_char('\n')
-  buf.to_string()
-}
-
-///|
-fn json_write_pretty(buf : StringBuilder, json : Json, indent : Int) -> Unit {
-  match json {
-    Null => buf.write_string("null")
-    True => buf.write_string("true")
-    False => buf.write_string("false")
-    Number(n, ..) => buf.write_string(n.to_string())
-    String(s) => {
-      buf.write_char('"')
-      for c in s {
-        match c {
-          '"' => buf.write_string("\\\"")
-          '\\' => buf.write_string("\\\\")
-          '\n' => buf.write_string("\\n")
-          '\r' => buf.write_string("\\r")
-          '\t' => buf.write_string("\\t")
-          _ => buf.write_char(c)
-        }
-      }
-      buf.write_char('"')
-    }
-    Array(arr) =>
-      if arr.is_empty() {
-        buf.write_string("[]")
-      } else {
-        buf.write_string("[\n")
-        let child = indent + 2
-        for i, item in arr {
-          write_indent(buf, child)
-          json_write_pretty(buf, item, child)
-          if i < arr.length() - 1 {
-            buf.write_char(',')
-          }
-          buf.write_char('\n')
-        }
-        write_indent(buf, indent)
-        buf.write_char(']')
-      }
-    Object(obj) =>
-      if obj.is_empty() {
-        buf.write_string("{}")
-      } else {
-        buf.write_string("{\n")
-        let child = indent + 2
-        let entries = obj.iter().collect()
-        for i, pair in entries {
-          let (k, v) = pair
-          write_indent(buf, child)
-          buf.write_char('"')
-          buf.write_string(k)
-          buf.write_string("\": ")
-          json_write_pretty(buf, v, child)
-          if i < entries.length() - 1 {
-            buf.write_char(',')
-          }
-          buf.write_char('\n')
-        }
-        write_indent(buf, indent)
-        buf.write_char('}')
-      }
-  }
-}
-
-///|
-fn write_indent(buf : StringBuilder, n : Int) -> Unit {
-  for _ in 0..<n {
-    buf.write_char(' ')
-  }
+  @json5.stringify_json_pretty(json)
 }
 
 ///|
@@ -294,6 +245,11 @@ pub fn stderr_log_path(proc : String) -> String {
 ///|
 pub fn pid_file_path(proc : String) -> String {
   "\{monitor_dir}/\{proc}/pid"
+}
+
+///|
+pub fn process_group_snapshot_path(proc : String) -> String {
+  "\{monitor_dir}/\{proc}/process-group.tsv"
 }
 
 ///|

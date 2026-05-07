@@ -1,7 +1,7 @@
 // Copyright 2026 tiye/redstart
 //
 // Native C FFI for process management on POSIX systems.
-// Provides: spawn (posix_spawn), kill, is_alive, now.
+// Provides: spawn (posix_spawn), kill, process-group kill, liveness checks, now.
 
 #ifndef _WIN32
 
@@ -127,6 +127,18 @@ MOONBIT_FFI_EXPORT int32_t redstart_kill(int32_t pid, int32_t sig) {
 }
 
 // ---------------------------------------------------------------------------
+// redstart_kill_process_group
+//
+// Send a signal to an entire process group.
+// Returns 0 on success, -1 on error.
+// ---------------------------------------------------------------------------
+MOONBIT_FFI_EXPORT int32_t redstart_kill_process_group(int32_t pgid,
+                                                       int32_t sig) {
+  if (pgid <= 0) return -1;
+  return (int32_t)kill(-(pid_t)pgid, sig);
+}
+
+// ---------------------------------------------------------------------------
 // redstart_is_alive
 //
 // Check if a process is alive.
@@ -138,6 +150,82 @@ MOONBIT_FFI_EXPORT int32_t redstart_is_alive(int32_t pid) {
   if (result == 0) return 1;
   if (errno == EPERM) return 1; // process exists but we lack permission
   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// redstart_is_process_group_alive
+//
+// Check if any process in the process group is still alive.
+// Returns 1 if alive, 0 if not alive.
+// ---------------------------------------------------------------------------
+MOONBIT_FFI_EXPORT int32_t redstart_is_process_group_alive(int32_t pgid) {
+  if (pgid <= 0) return 0;
+  int result = kill(-(pid_t)pgid, 0);
+  if (result == 0) return 1;
+  if (errno == EPERM) return 1; // process group exists but we lack permission
+  return 0;
+}
+
+// ---------------------------------------------------------------------------
+// redstart_write_process_group_snapshot
+//
+// Write current process-group members to a tab-separated snapshot file:
+//   pid<TAB>ppid<TAB>pgid<TAB>command\n
+// Returns 0 on success, -1 on error.
+// ---------------------------------------------------------------------------
+MOONBIT_FFI_EXPORT int32_t redstart_write_process_group_snapshot(
+    int32_t pgid, moonbit_bytes_t output_path) {
+  if (pgid <= 0) return -1;
+
+  FILE *out = fopen((const char *)output_path, "w");
+  if (!out) return -1;
+
+  FILE *ps = popen("ps -axo pid=,ppid=,pgid=,command=", "r");
+  if (!ps) {
+    fclose(out);
+    return -1;
+  }
+
+  char line[8192];
+  while (fgets(line, sizeof(line), ps) != NULL) {
+    char *cursor = line;
+    while (*cursor == ' ' || *cursor == '\t') cursor++;
+    if (*cursor == '\0' || *cursor == '\n') continue;
+
+    errno = 0;
+    char *end = NULL;
+    long pid_value = strtol(cursor, &end, 10);
+    if (end == cursor || errno != 0) continue;
+    cursor = end;
+
+    long ppid_value = strtol(cursor, &end, 10);
+    if (end == cursor || errno != 0) continue;
+    cursor = end;
+
+    long pgid_value = strtol(cursor, &end, 10);
+    if (end == cursor || errno != 0) continue;
+    cursor = end;
+
+    while (*cursor == ' ' || *cursor == '\t') cursor++;
+    size_t command_len = strlen(cursor);
+    while (command_len > 0 &&
+           (cursor[command_len - 1] == '\n' || cursor[command_len - 1] == '\r')) {
+      cursor[command_len - 1] = '\0';
+      command_len--;
+    }
+
+    if (pgid_value != (long)pgid) continue;
+    if (fprintf(out, "%ld\t%ld\t%ld\t%s\n", pid_value, ppid_value,
+                pgid_value, cursor) < 0) {
+      pclose(ps);
+      fclose(out);
+      return -1;
+    }
+  }
+
+  int ps_status = pclose(ps);
+  if (fclose(out) != 0) return -1;
+  return ps_status == 0 ? 0 : -1;
 }
 
 // ---------------------------------------------------------------------------

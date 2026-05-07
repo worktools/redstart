@@ -38,6 +38,19 @@ pub fn force_kill_process(_pid : Int) -> Bool {
 }
 
 ///|
+pub fn list_process_group_members(
+  _proc : String,
+  _pgid : Int,
+) -> Array[ProcessGroupMember] raise RedstartError {
+  raise RedstartError("not supported on this target")
+}
+
+///|
+pub fn inspect_process(entry : ProcessEntry) -> ProcessInspectSnapshot {
+  { process: entry, process_group_members: [], child_processes: [] }
+}
+
+///|
 pub fn start_with_retry(
   _entry : ProcessEntry,
   _max_retries : Int,

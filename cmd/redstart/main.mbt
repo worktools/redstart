@@ -330,7 +330,11 @@ fn start_one(config : @redstart.Config, target : String) -> Unit {
     )
     @sys.exit(1)
   }
-  println("Starting '" + entry.proc_name + "'...")
+  println(
+    "Starting '" +
+    entry.proc_name +
+    "' as a new process group (child processes, if any, will be managed together)...",
+  )
   try {
     let (pid, started_at) = @redstart.start_with_retry(entry, 3)
     entry.mark_running(pid, started_at)
@@ -343,7 +347,15 @@ fn start_one(config : @redstart.Config, target : String) -> Unit {
     @redstart.save_config(config) catch {
       e => println("warning: failed to save config: " + e.to_string())
     }
-    println(" started (pid: " + pid.to_string() + ")")
+    println(" started (process group leader pid: " + pid.to_string() + ")")
+    println(
+      " note: child processes spawned by this command will be stopped and restarted together with '" +
+      entry.proc_name +
+      "'",
+    )
+    print_process_group_members(
+      entry, pid, " current process-group members:", " no child processes detected yet",
+    )
   } catch {
     e => {
       println(" failed")
@@ -402,7 +414,19 @@ fn stop_one(config : @redstart.Config, target : String) -> Unit {
     return
   }
   println(
-    "Stopping '" + entry.proc_name + "' (pid: " + pid.to_string() + ")...",
+    "Stopping '" +
+    entry.proc_name +
+    "' (process group leader pid: " +
+    pid.to_string() +
+    ")...",
+  )
+  println(
+    " this will also stop child processes spawned by '" +
+    entry.proc_name +
+    "', if any",
+  )
+  print_process_group_members(
+    entry, pid, " process-group members expected to stop together:", " no additional child processes detected",
   )
   @redstart.stop_gracefully(pid)
   entry.mark_stopped(@redstart.now().to_string(), None)
@@ -411,7 +435,7 @@ fn stop_one(config : @redstart.Config, target : String) -> Unit {
   @redstart.save_config(config) catch {
     e => println("warning: failed to save config: " + e.to_string())
   }
-  println(" stopped")
+  println(" stopped process group")
 }
 
 ///|
@@ -426,10 +450,56 @@ fn run_restart(m : @argparse.Matches) -> Unit {
     }
     Some(e) => e
   }
+  println(
+    "Restarting '" +
+    entry.proc_name +
+    "' by replacing its whole process group (including child processes, if any)...",
+  )
   if entry.status == "running" {
     stop_one(config, target)
   }
   start_one(config, target)
+}
+
+///|
+fn format_process_group_role(
+  proc_info : @redstart.ProcessGroupMember,
+) -> String {
+  if proc_info.pid == proc_info.pgid {
+    "leader"
+  } else {
+    "child "
+  }
+}
+
+///|
+fn print_process_group_members(
+  entry : @redstart.ProcessEntry,
+  pid : Int,
+  title : String,
+  empty_message : String,
+) -> Unit {
+  let members = @redstart.list_process_group_members(entry.proc_name, pid) catch {
+    e => {
+      println(" warning: failed to inspect process group: " + e.to_string())
+      return
+    }
+  }
+  println(title)
+  if members.is_empty() {
+    println(empty_message)
+    return
+  }
+  for proc_info in members {
+    println(
+      "  - " +
+      format_process_group_role(proc_info) +
+      " [" +
+      proc_info.pid.to_string() +
+      "] " +
+      proc_info.command,
+    )
+  }
 }
 
 ///|
@@ -869,7 +939,8 @@ fn run_inspect(m : @argparse.Matches) -> Unit {
   }
   refresh_entry_status(entry)
   ignore(@redstart.save_config(config) catch { _ => () })
-  println(@redstart.json_to_string(entry.to_json()))
+  let snapshot = @redstart.inspect_process(entry)
+  println(@redstart.json_to_string(snapshot.to_json()))
 }
 
 ///|
