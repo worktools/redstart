@@ -508,7 +508,7 @@ fn run_list(m : @argparse.Matches) -> Unit {
   refresh_statuses(config)
   let as_json = m.flags.get("json").unwrap_or(false)
   if as_json {
-    println(@redstart.json_to_string(config.processes.to_json()))
+    println(@redstart.json_to_pretty_string(config.processes.to_json()))
     return
   }
   if config.processes.is_empty() {
@@ -578,7 +578,7 @@ fn run_status(m : @argparse.Matches) -> Unit {
       refresh_entry_status(entry)
       ignore(@redstart.save_config(config) catch { _ => () })
       if as_json {
-        println(@redstart.json_to_string(entry.to_json()))
+        println(@redstart.json_to_pretty_string(entry.to_json()))
         return
       }
       println("Process:  " + entry.proc_name)
@@ -940,7 +940,7 @@ fn run_inspect(m : @argparse.Matches) -> Unit {
   refresh_entry_status(entry)
   ignore(@redstart.save_config(config) catch { _ => () })
   let snapshot = @redstart.inspect_process(entry)
-  println(@redstart.json_to_string(snapshot.to_json()))
+  println(@redstart.json_to_pretty_string(snapshot.to_json()))
 }
 
 ///|
