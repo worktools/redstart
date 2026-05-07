@@ -49,6 +49,13 @@ extern "C" fn ffi_is_alive(pid : Int) -> Int = "redstart_is_alive"
 extern "C" fn ffi_is_process_group_alive(pgid : Int) -> Int = "redstart_is_process_group_alive"
 
 ///|
+#borrow(output_path)
+extern "C" fn ffi_write_process_group_snapshot(
+  pgid : Int,
+  output_path : Bytes,
+) -> Int = "redstart_write_process_group_snapshot"
+
+///|
 extern "C" fn ffi_sleep_ms(ms : Int) -> Unit = "redstart_sleep_ms"
 
 ///|
@@ -119,6 +126,97 @@ fn force_kill_process_group(pgid : Int) -> Bool {
 ///|
 fn is_process_group_alive(pgid : Int) -> Bool {
   ffi_is_process_group_alive(pgid) == 1
+}
+
+///|
+fn parse_positive_int_or(s : String, default : Int) -> Int {
+  let mut result = 0
+  let mut seen_digit = false
+  for c in s {
+    let n = c.to_int()
+    if n >= 48 && n <= 57 {
+      result = result * 10 + n - 48
+      seen_digit = true
+    } else {
+      return default
+    }
+  }
+  if seen_digit {
+    result
+  } else {
+    default
+  }
+}
+
+///|
+fn parse_process_group_member(line : String) -> ProcessGroupMember? {
+  if line == "" {
+    return None
+  }
+  let parts = line.split("\t").map(StringView::to_owned).collect()
+  if parts.length() < 4 {
+    return None
+  }
+  let pid = parse_positive_int_or(parts[0], -1)
+  let ppid = parse_positive_int_or(parts[1], -1)
+  let pgid = parse_positive_int_or(parts[2], -1)
+  if pid <= 0 || ppid < 0 || pgid <= 0 {
+    return None
+  }
+  let command = parts[3:parts.length()].join("\t")
+  Some(new_process_group_member(pid, ppid, pgid, command))
+}
+
+///|
+pub fn list_process_group_members(
+  proc : String,
+  pgid : Int,
+) -> Array[ProcessGroupMember] raise RedstartError {
+  if pgid <= 0 {
+    return []
+  }
+  ensure_root_monitor_dir()
+  ensure_monitor_dir(proc)
+  let snapshot_path = process_group_snapshot_path(proc)
+  let rc = ffi_write_process_group_snapshot(pgid, str_to_cstr(snapshot_path))
+  if rc != 0 {
+    raise RedstartError(
+      "failed to inspect process group for '\{proc}' (pgid: \{pgid.to_string()})",
+    )
+  }
+  let content = @fs.read_file_to_string(snapshot_path) catch {
+    e =>
+      raise RedstartError(
+        "failed to read process-group snapshot: \{@debug.to_repr(e)}",
+      )
+  }
+  let lines = content.split("\n").map(StringView::to_owned).collect()
+  let members : Array[ProcessGroupMember] = []
+  for line in lines {
+    match parse_process_group_member(line) {
+      None => ()
+      Some(proc_info) => members.push(proc_info)
+    }
+  }
+  members
+}
+
+///|
+pub fn inspect_process(entry : ProcessEntry) -> ProcessInspectSnapshot {
+  let members = match entry.pid {
+    Some(pid) if is_process_alive(pid) =>
+      list_process_group_members(entry.proc_name, pid) catch {
+        _ => []
+      }
+    _ => []
+  }
+  let child_processes : Array[ProcessGroupMember] = []
+  for proc_info in members {
+    if proc_info.pid != proc_info.pgid {
+      child_processes.push(proc_info)
+    }
+  }
+  { process: entry, process_group_members: members, child_processes }
 }
 
 ///|

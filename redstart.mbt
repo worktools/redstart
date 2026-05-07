@@ -33,6 +33,31 @@ pub struct ProcessEntry {
 } derive(ToJson, FromJson, Debug)
 
 ///|
+pub struct ProcessGroupMember {
+  pid : Int
+  ppid : Int
+  pgid : Int
+  command : String
+} derive(ToJson, Debug)
+
+///|
+pub struct ProcessInspectSnapshot {
+  process : ProcessEntry
+  process_group_members : Array[ProcessGroupMember]
+  child_processes : Array[ProcessGroupMember]
+} derive(ToJson, Debug)
+
+///|
+pub fn new_process_group_member(
+  pid : Int,
+  ppid : Int,
+  pgid : Int,
+  command : String,
+) -> ProcessGroupMember {
+  { pid, ppid, pgid, command }
+}
+
+///|
 pub impl Show for ProcessEntry with output(self, logger) {
   let pid_str = match self.pid {
     None => "null"
@@ -294,6 +319,11 @@ pub fn stderr_log_path(proc : String) -> String {
 ///|
 pub fn pid_file_path(proc : String) -> String {
   "\{monitor_dir}/\{proc}/pid"
+}
+
+///|
+pub fn process_group_snapshot_path(proc : String) -> String {
+  "\{monitor_dir}/\{proc}/process-group.tsv"
 }
 
 ///|

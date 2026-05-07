@@ -167,6 +167,68 @@ MOONBIT_FFI_EXPORT int32_t redstart_is_process_group_alive(int32_t pgid) {
 }
 
 // ---------------------------------------------------------------------------
+// redstart_write_process_group_snapshot
+//
+// Write current process-group members to a tab-separated snapshot file:
+//   pid<TAB>ppid<TAB>pgid<TAB>command\n
+// Returns 0 on success, -1 on error.
+// ---------------------------------------------------------------------------
+MOONBIT_FFI_EXPORT int32_t redstart_write_process_group_snapshot(
+    int32_t pgid, moonbit_bytes_t output_path) {
+  if (pgid <= 0) return -1;
+
+  FILE *out = fopen((const char *)output_path, "w");
+  if (!out) return -1;
+
+  FILE *ps = popen("ps -axo pid=,ppid=,pgid=,command=", "r");
+  if (!ps) {
+    fclose(out);
+    return -1;
+  }
+
+  char line[8192];
+  while (fgets(line, sizeof(line), ps) != NULL) {
+    char *cursor = line;
+    while (*cursor == ' ' || *cursor == '\t') cursor++;
+    if (*cursor == '\0' || *cursor == '\n') continue;
+
+    errno = 0;
+    char *end = NULL;
+    long pid_value = strtol(cursor, &end, 10);
+    if (end == cursor || errno != 0) continue;
+    cursor = end;
+
+    long ppid_value = strtol(cursor, &end, 10);
+    if (end == cursor || errno != 0) continue;
+    cursor = end;
+
+    long pgid_value = strtol(cursor, &end, 10);
+    if (end == cursor || errno != 0) continue;
+    cursor = end;
+
+    while (*cursor == ' ' || *cursor == '\t') cursor++;
+    size_t command_len = strlen(cursor);
+    while (command_len > 0 &&
+           (cursor[command_len - 1] == '\n' || cursor[command_len - 1] == '\r')) {
+      cursor[command_len - 1] = '\0';
+      command_len--;
+    }
+
+    if (pgid_value != (long)pgid) continue;
+    if (fprintf(out, "%ld\t%ld\t%ld\t%s\n", pid_value, ppid_value,
+                pgid_value, cursor) < 0) {
+      pclose(ps);
+      fclose(out);
+      return -1;
+    }
+  }
+
+  int ps_status = pclose(ps);
+  if (fclose(out) != 0) return -1;
+  return ps_status == 0 ? 0 : -1;
+}
+
+// ---------------------------------------------------------------------------
 // redstart_sleep_ms
 //
 // Sleep for the given number of milliseconds.
