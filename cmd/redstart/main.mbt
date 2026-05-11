@@ -789,7 +789,7 @@ fn print_doc_overview() -> Unit {
   println("  stop  [alias|id]           Stop a process (or all running)")
   println("  restart <alias|id>         Stop then start one process")
   println(
-    "  restart --all              Stop all services, then start all services",
+    "  restart --all              Stop all services, then start all services in config order",
   )
   println("  list [--json]              List all processes")
   println("  status [alias|id] [--json] Show process status")
