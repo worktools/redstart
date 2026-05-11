@@ -101,9 +101,18 @@ fn build_cli() -> @argparse.Command {
           ),
         ],
       ),
-      @argparse.Command("restart", about="Restart a process", positionals=[
-        @argparse.PositionArg("target", about="Process alias or id"),
-      ]),
+      @argparse.Command(
+        "restart",
+        about="Restart a process or all processes",
+        flags=[@argparse.FlagArg("all", about="Restart all processes in order")],
+        positionals=[
+          @argparse.PositionArg(
+            "target",
+            about="Process alias or id",
+            num_args=@argparse.ValueRange(lower=0, upper=1),
+          ),
+        ],
+      ),
       @argparse.Command("list", about="List all processes and their status", flags=[
         @argparse.FlagArg("json", about="Output as JSON array"),
       ]),
@@ -440,8 +449,30 @@ fn stop_one(config : @redstart.Config, target : String) -> Unit {
 
 ///|
 fn run_restart(m : @argparse.Matches) -> Unit {
-  let target = get_first_value(m, "target")
+  let target_arr = m.values.get("target").unwrap_or([])
+  let target = if target_arr.is_empty() { None } else { Some(target_arr[0]) }
+  let restart_all = m.flags.get("all").unwrap_or(false)
   let config = load_config_or_exit()
+  if restart_all {
+    match target {
+      Some(t) => {
+        println(
+          "error: '--all' cannot be used together with a process target: " + t,
+        )
+        @sys.exit(1)
+      }
+      None => restart_all_processes(config)
+    }
+    return
+  }
+  let target = match target {
+    None => {
+      println("error: restart requires <alias|id> or --all")
+      @sys.exit(1)
+      panic()
+    }
+    Some(t) => t
+  }
   let entry = match @redstart.find_process(config, target) {
     None => {
       println("error: process not found: " + target)
@@ -459,6 +490,73 @@ fn run_restart(m : @argparse.Matches) -> Unit {
     stop_one(config, target)
   }
   start_one(config, target)
+}
+
+///|
+fn restart_all_processes(config : @redstart.Config) -> Unit {
+  refresh_statuses(config)
+  if config.processes.is_empty() {
+    println("No processes defined. Use 'redstart add' to add one.")
+    return
+  }
+  let aliases : Array[String] = []
+  for p in config.processes {
+    aliases.push(p.proc_name)
+  }
+  let total = aliases.length()
+  println(
+    "Restarting all processes in config order: stop each service first, then start each service.",
+  )
+  println("Stop phase")
+  println("  total services: " + total.to_string())
+  let mut stop_count = 0
+  for i in 0..<total {
+    let proc_alias = aliases[i]
+    let entry = match @redstart.find_process(config, proc_alias) {
+      None => continue
+      Some(e) => e
+    }
+    println(
+      "[stop " +
+      (i + 1).to_string() +
+      "/" +
+      total.to_string() +
+      "] " +
+      proc_alias,
+    )
+    if entry.status == "running" {
+      stop_one(config, proc_alias)
+      stop_count = stop_count + 1
+    } else {
+      println(" skipped: process is already stopped")
+    }
+  }
+  println(
+    "Stop phase complete: stopped " +
+    stop_count.to_string() +
+    " running service(s).",
+  )
+  println("")
+  println("Start phase")
+  let mut start_count = 0
+  for i in 0..<total {
+    let proc_alias = aliases[i]
+    println(
+      "[start " +
+      (i + 1).to_string() +
+      "/" +
+      total.to_string() +
+      "] " +
+      proc_alias,
+    )
+    start_one(config, proc_alias)
+    start_count = start_count + 1
+  }
+  println(
+    "Restart complete: started " +
+    start_count.to_string() +
+    " service(s) in config order.",
+  )
 }
 
 ///|
@@ -689,7 +787,10 @@ fn print_doc_overview() -> Unit {
   println("  remove <alias|id>          Remove a stopped process")
   println("  start [alias|id]           Start a process (or all stopped)")
   println("  stop  [alias|id]           Stop a process (or all running)")
-  println("  restart <alias|id>         Stop then start a process")
+  println("  restart <alias|id>         Stop then start one process")
+  println(
+    "  restart --all              Stop all services, then start all services",
+  )
   println("  list [--json]              List all processes")
   println("  status [alias|id] [--json] Show process status")
   println("  inspect <alias|id>         Dump process state as JSON")
@@ -819,10 +920,19 @@ fn print_doc_topic(topic : String) -> Unit {
       println("  Sends SIGTERM and waits up to 5 seconds, then sends SIGKILL.")
     }
     "restart" => {
-      println("restart — Stop then start a process.")
+      println(
+        "restart — Stop then start one process, or restart all services in order.",
+      )
       println("")
       println("USAGE")
       println("  redstart restart <alias|id>")
+      println("  redstart restart --all")
+      println("")
+      println("NOTES")
+      println(
+        "  With --all, redstart first stops services one by one in config order,",
+      )
+      println("  then starts them one by one in the same order.")
     }
     "list" => {
       println("list — List all defined processes and their current status.")
