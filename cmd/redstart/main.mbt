@@ -108,7 +108,7 @@ fn build_cli() -> @argparse.Command {
         positionals=[
           @argparse.PositionArg(
             "target",
-            about="Process alias or id",
+            about="Process alias or id (omit when using --all)",
             num_args=@argparse.ValueRange(lower=0, upper=1),
           ),
         ],
