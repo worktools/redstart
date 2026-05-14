@@ -15,6 +15,8 @@ pub fn ensure_monitor_dir(String) -> Unit raise RedstartError
 
 pub fn ensure_root_monitor_dir() -> Unit raise RedstartError
 
+pub fn find_live_process_group_pid(ProcessEntry) -> Int?
+
 pub fn find_process(Config, String) -> ProcessEntry?
 
 pub fn force_kill_process(Int) -> Bool
@@ -25,7 +27,11 @@ pub fn generate_id(Int64, String) -> String
 
 pub fn inspect_process(ProcessEntry) -> ProcessInspectSnapshot
 
+pub fn inspect_process_runtime(ProcessEntry) -> ProcessRuntimeDiagnostics
+
 pub fn is_process_alive(Int) -> Bool
+
+pub fn is_process_group_alive(Int) -> Bool
 
 pub fn json_to_pretty_string(Json) -> String
 
@@ -51,9 +57,15 @@ pub fn now() -> Int64
 
 pub fn pid_file_path(String) -> String
 
+pub fn process_cwd_exists(ProcessEntry) -> Bool
+
 pub fn process_group_snapshot_path(String) -> String
 
 pub fn read_last_lines(String, Int) -> Array[String] raise RedstartError
+
+pub fn read_pid_file(String) -> Int? raise RedstartError
+
+pub fn read_pid_file_or_none(String) -> Int?
 
 pub fn save_config(Config) -> Unit raise RedstartError
 
@@ -98,8 +110,10 @@ pub struct ProcessEntry {
   mut exit_code : Int?
   mut retry_count : Int
 } derive(ToJson, @debug.Debug, @json.FromJson)
+pub fn ProcessEntry::clear_tracked_pid(Self) -> Unit
 pub fn ProcessEntry::mark_failed(Self) -> Unit
 pub fn ProcessEntry::mark_running(Self, Int, String) -> Unit
+pub fn ProcessEntry::mark_running_recovered(Self, Int) -> Unit
 pub fn ProcessEntry::mark_stopped(Self, String, Int?) -> Unit
 pub fn ProcessEntry::mark_unknown(Self) -> Unit
 pub impl Show for ProcessEntry
@@ -113,8 +127,19 @@ pub struct ProcessGroupMember {
 
 pub struct ProcessInspectSnapshot {
   process : ProcessEntry
+  runtime : ProcessRuntimeDiagnostics
   process_group_members : Array[ProcessGroupMember]
   child_processes : Array[ProcessGroupMember]
+} derive(ToJson, @debug.Debug)
+
+pub struct ProcessRuntimeDiagnostics {
+  tracked_pid : Int?
+  tracked_pid_alive : Bool
+  process_group_alive : Bool
+  pid_file_pid : Int?
+  pid_file_alive : Bool
+  cwd_exists : Bool
+  anomalies : Array[String]
 } derive(ToJson, @debug.Debug)
 
 // Type aliases

@@ -1,0 +1,10 @@
+import {
+  "tiye/redstart",
+  "moonbitlang/x/sys",
+  "moonbitlang/x/fs",
+  "moonbitlang/core/argparse",
+}
+
+options(
+  "is-main": true,
+)
