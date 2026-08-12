@@ -41,7 +41,7 @@ fn main {
 ///|
 fn build_cli() -> @argparse.Command {
   @argparse.Command(
-    "redstart",
+    "red",
     about="Lightweight process manager for local development",
     subcommand_required=true,
     subcommands=[
@@ -502,7 +502,7 @@ fn run_restart(m : @argparse.Matches) -> Unit {
 fn restart_all_processes(config : @redstart.Config) -> Unit {
   refresh_statuses(config)
   if config.processes.is_empty() {
-    println("No processes defined. Use 'redstart add' to add one.")
+    println("No processes defined. Use 'red add' to add one.")
     return
   }
   let aliases : Array[String] = []
@@ -616,7 +616,7 @@ fn run_list(m : @argparse.Matches) -> Unit {
     return
   }
   if config.processes.is_empty() {
-    println("No processes defined. Use 'redstart add' to add one.")
+    println("No processes defined. Use 'red add' to add one.")
     return
   }
   // Compute dynamic column widths based on actual content
@@ -806,16 +806,16 @@ fn run_doc(m : @argparse.Matches) -> Unit {
 ///|
 fn print_doc_overview() -> Unit {
   println(
-    "redstart — Lightweight process manager for local development and agent automation",
+    "red — Lightweight process manager for local development and agent automation",
   )
   println("")
   println("QUICK START")
-  println("  redstart init              # create redstart.json5")
-  println("  redstart add web 'node .' # define a process")
-  println("  redstart start web         # start it")
-  println("  redstart list              # see all processes")
-  println("  redstart logs web          # tail logs")
-  println("  redstart stop web          # stop it")
+  println("  red init                   # create redstart.json5")
+  println("  red add web 'node .'       # define a process")
+  println("  red start web              # start it")
+  println("  red list                   # see all processes")
+  println("  red logs web               # tail logs")
+  println("  red stop web               # stop it")
   println("")
   println("COMMANDS")
   println(
@@ -853,24 +853,24 @@ fn print_doc_overview() -> Unit {
   println("")
   println("AGENT / SCRIPT USAGE")
   println("  # Machine-readable output:")
-  println("  redstart list --json")
-  println("  redstart status web --json")
-  println("  redstart inspect web")
+  println("  red list --json")
+  println("  red status web --json")
+  println("  red inspect web")
   println("")
   println("  # Wait for a process to become ready before proceeding:")
-  println("  redstart start web && redstart wait web --timeout 10")
+  println("  red start web && red wait web --timeout 10")
   println("")
   println("  # Pass environment variables to a process:")
-  println("  redstart add api 'python app.py' --env PORT=8000,DEBUG=1")
+  println("  red add api 'python app.py' --env PORT=8000,DEBUG=1")
   println("")
   println("  # Check if a specific process is running (exit code 0 = running):")
-  println("  redstart inspect web | grep '\"status\": \"running\"'")
+  println("  red inspect web | grep '\"status\": \"running\"'")
   println("")
   println("EXIT CODES")
   println("  0   Success / process is running")
   println("  1   Error / process not found / timeout")
   println("")
-  println("Run 'redstart doc <command>' for detailed per-command reference.")
+  println("Run 'red doc <command>' for detailed per-command reference.")
 }
 
 ///|
@@ -882,7 +882,7 @@ fn print_doc_topic(topic : String) -> Unit {
       )
       println("")
       println("USAGE")
-      println("  redstart init")
+      println("  red init")
       println("")
       println("NOTES")
       println("  Creates redstart.json5 with an empty process list.")
@@ -894,9 +894,7 @@ fn print_doc_topic(topic : String) -> Unit {
       println("add — Define a new managed process.")
       println("")
       println("USAGE")
-      println(
-        "  redstart add <alias> <command...> [--cwd <dir>] [--env KEY=VAL]...",
-      )
+      println("  red add <alias> <command...> [--cwd <dir>] [--env KEY=VAL]...")
       println("")
       println("ARGS")
       println(
@@ -915,27 +913,27 @@ fn print_doc_topic(topic : String) -> Unit {
       )
       println("")
       println("EXAMPLES")
-      println("  redstart add web 'node server.js'")
+      println("  red add web 'node server.js'")
       println(
-        "  redstart add api python app.py --cwd ./backend --env PORT=8080,DEBUG=1",
+        "  red add api python app.py --cwd ./backend --env PORT=8080,DEBUG=1",
       )
     }
     "remove" => {
       println("remove — Remove a process definition from redstart.json5.")
       println("")
       println("USAGE")
-      println("  redstart remove <alias|id>")
+      println("  red remove <alias|id>")
       println("")
       println("NOTES")
       println(
-        "  The process must be stopped first. Use 'redstart stop <alias>' if needed.",
+        "  The process must be stopped first. Use 'red stop <alias>' if needed.",
       )
     }
     "start" => {
       println("start — Start a process (with up to 3 automatic retries).")
       println("")
       println("USAGE")
-      println("  redstart start [<alias|id>]")
+      println("  red start [<alias|id>]")
       println("")
       println("NOTES")
       println("  With no argument, starts all processes not currently running.")
@@ -953,7 +951,7 @@ fn print_doc_topic(topic : String) -> Unit {
       println("stop — Stop a running process gracefully.")
       println("")
       println("USAGE")
-      println("  redstart stop [<alias|id>]")
+      println("  red stop [<alias|id>]")
       println("")
       println("NOTES")
       println("  With no argument, stops all running processes.")
@@ -965,12 +963,12 @@ fn print_doc_topic(topic : String) -> Unit {
       )
       println("")
       println("USAGE")
-      println("  redstart restart <alias|id>")
-      println("  redstart restart --all")
+      println("  red restart <alias|id>")
+      println("  red restart --all")
       println("")
       println("NOTES")
       println(
-        "  With --all, redstart first stops services one by one in config order,",
+        "  With --all, red first stops services one by one in config order,",
       )
       println("  then starts them one by one in the same order.")
     }
@@ -978,7 +976,7 @@ fn print_doc_topic(topic : String) -> Unit {
       println("list — List all defined processes and their current status.")
       println("")
       println("USAGE")
-      println("  redstart list [--json]")
+      println("  red list [--json]")
       println("")
       println("OPTIONS")
       println(
@@ -995,7 +993,7 @@ fn print_doc_topic(topic : String) -> Unit {
       println("status — Show detailed status for one process, or list all.")
       println("")
       println("USAGE")
-      println("  redstart status [<alias|id>] [--json]")
+      println("  red status [<alias|id>] [--json]")
       println("")
       println("OPTIONS")
       println("  --json    Output JSON instead of human-readable text.")
@@ -1004,12 +1002,10 @@ fn print_doc_topic(topic : String) -> Unit {
       println("inspect — Dump the full state of one process as JSON.")
       println("")
       println("USAGE")
-      println("  redstart inspect <alias|id>")
+      println("  red inspect <alias|id>")
       println("")
       println("NOTES")
-      println(
-        "  Equivalent to 'redstart status <alias> --json' but always JSON.",
-      )
+      println("  Equivalent to 'red status <alias> --json' but always JSON.")
       println("  Intended for agent/script consumption. Fields:")
       println("    id, proc_name, command, cwd, env, created_at,")
       println("    status, pid, started_at, stopped_at, exit_code, retry_count")
@@ -1020,7 +1016,7 @@ fn print_doc_topic(topic : String) -> Unit {
       )
       println("")
       println("USAGE")
-      println("  redstart logs <alias|id> [-n <lines>] [--stdout] [--stderr]")
+      println("  red logs <alias|id> [-n <lines>] [--stdout] [--stderr]")
       println("")
       println("OPTIONS")
       println("  -n <lines>   Number of lines to show (default: 50).")
@@ -1036,7 +1032,7 @@ fn print_doc_topic(topic : String) -> Unit {
       println("wait — Block until a process reaches 'running' status.")
       println("")
       println("USAGE")
-      println("  redstart wait <alias|id> [--timeout <seconds>]")
+      println("  red wait <alias|id> [--timeout <seconds>]")
       println("")
       println("OPTIONS")
       println("  -t, --timeout <seconds>   Maximum time to wait (default: 30).")
@@ -1052,13 +1048,13 @@ fn print_doc_topic(topic : String) -> Unit {
       println("  a process is ready before sending requests to it.")
       println("")
       println("EXAMPLE")
-      println("  redstart start web && redstart wait web --timeout 15")
+      println("  red start web && red wait web --timeout 15")
     }
     "doc" => {
       println("doc — Show documentation.")
       println("")
       println("USAGE")
-      println("  redstart doc [<command>]")
+      println("  red doc [<command>]")
       println("")
       println("  With no argument: show full overview.")
       println(

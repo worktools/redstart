@@ -124,7 +124,7 @@ fn force_kill_process_group(pgid : Int) -> Bool {
 }
 
 ///|
-fn is_process_group_alive(pgid : Int) -> Bool {
+pub fn is_process_group_alive(pgid : Int) -> Bool {
   ffi_is_process_group_alive(pgid) == 1
 }
 
@@ -202,13 +202,120 @@ pub fn list_process_group_members(
 }
 
 ///|
+pub fn find_live_process_group_pid(entry : ProcessEntry) -> Int? {
+  match entry.pid {
+    Some(pid) if is_process_group_alive(pid) => Some(pid)
+    _ =>
+      match read_pid_file_or_none(entry.proc_name) {
+        Some(pid) if is_process_group_alive(pid) => Some(pid)
+        _ => None
+      }
+  }
+}
+
+///|
+pub fn inspect_process_runtime(
+  entry : ProcessEntry,
+) -> ProcessRuntimeDiagnostics {
+  let tracked_pid = entry.pid
+  let cwd_exists = process_cwd_exists(entry)
+  let tracked_pid_alive = match tracked_pid {
+    None => false
+    Some(pid) => is_process_alive(pid)
+  }
+  let process_group_alive = match tracked_pid {
+    None => false
+    Some(pid) => is_process_group_alive(pid)
+  }
+  let pid_file_pid = read_pid_file_or_none(entry.proc_name)
+  let pid_file_alive = match pid_file_pid {
+    None => false
+    Some(pid) => is_process_group_alive(pid)
+  }
+  let anomalies : Array[String] = []
+  match tracked_pid {
+    None => {
+      if entry.status == "running" {
+        anomalies.push("status is 'running' but no pid is recorded in config")
+      }
+      if pid_file_alive {
+        match pid_file_pid {
+          None => ()
+          Some(pid) =>
+            anomalies.push(
+              "config has no pid, but pid file points to live process group " +
+              pid.to_string(),
+            )
+        }
+      }
+    }
+    Some(pid) =>
+      if !tracked_pid_alive && process_group_alive {
+        anomalies.push(
+          "tracked leader pid " +
+          pid.to_string() +
+          " exited, but the process group is still alive",
+        )
+      } else if !process_group_alive && entry.status == "running" {
+        anomalies.push(
+          "status is 'running' but tracked process group " +
+          pid.to_string() +
+          " is not alive",
+        )
+      }
+  }
+  match pid_file_pid {
+    None => ()
+    Some(pid) => {
+      if !pid_file_alive {
+        anomalies.push("pid file points to stale pid " + pid.to_string())
+      }
+      match tracked_pid {
+        Some(saved_pid) if saved_pid != pid =>
+          anomalies.push(
+            "pid file pid " +
+            pid.to_string() +
+            " does not match tracked pid " +
+            saved_pid.to_string(),
+          )
+        _ => ()
+      }
+    }
+  }
+  if !cwd_exists {
+    match entry.cwd {
+      None => ()
+      Some(path) => anomalies.push("configured cwd does not exist: " + path)
+    }
+  }
+  if entry.status != "running" && (process_group_alive || pid_file_alive) {
+    anomalies.push(
+      "status is '" +
+      entry.status +
+      "' but a process group still appears to be alive",
+    )
+  }
+  {
+    tracked_pid,
+    tracked_pid_alive,
+    process_group_alive,
+    pid_file_pid,
+    pid_file_alive,
+    cwd_exists,
+    anomalies,
+  }
+}
+
+///|
 pub fn inspect_process(entry : ProcessEntry) -> ProcessInspectSnapshot {
-  let members = match entry.pid {
-    Some(pid) if is_process_alive(pid) =>
+  let runtime = inspect_process_runtime(entry)
+  let live_group_pid = find_live_process_group_pid(entry)
+  let members = match live_group_pid {
+    Some(pid) =>
       list_process_group_members(entry.proc_name, pid) catch {
         _ => []
       }
-    _ => []
+    None => []
   }
   let child_processes : Array[ProcessGroupMember] = []
   for proc_info in members {
@@ -216,7 +323,7 @@ pub fn inspect_process(entry : ProcessEntry) -> ProcessInspectSnapshot {
       child_processes.push(proc_info)
     }
   }
-  { process: entry, process_group_members: members, child_processes }
+  { process: entry, runtime, process_group_members: members, child_processes }
 }
 
 ///|
@@ -226,6 +333,18 @@ pub fn start_with_retry(
   entry : ProcessEntry,
   max_retries : Int,
 ) -> (Int, String) raise RedstartError {
+  if !process_cwd_exists(entry) {
+    match entry.cwd {
+      None => ()
+      Some(path) =>
+        raise RedstartError(
+          "configured cwd does not exist for process '" +
+          entry.proc_name +
+          "': " +
+          path,
+        )
+    }
+  }
   let cwd = match entry.cwd {
     None => ""
     Some(d) => d

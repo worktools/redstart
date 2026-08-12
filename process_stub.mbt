@@ -46,8 +46,38 @@ pub fn list_process_group_members(
 }
 
 ///|
+pub fn is_process_group_alive(_pgid : Int) -> Bool {
+  panic()
+}
+
+///|
+pub fn find_live_process_group_pid(_entry : ProcessEntry) -> Int? {
+  panic()
+}
+
+///|
+pub fn inspect_process_runtime(
+  entry : ProcessEntry,
+) -> ProcessRuntimeDiagnostics {
+  {
+    tracked_pid: entry.pid,
+    tracked_pid_alive: false,
+    process_group_alive: false,
+    pid_file_pid: None,
+    pid_file_alive: false,
+    cwd_exists: process_cwd_exists(entry),
+    anomalies: [],
+  }
+}
+
+///|
 pub fn inspect_process(entry : ProcessEntry) -> ProcessInspectSnapshot {
-  { process: entry, process_group_members: [], child_processes: [] }
+  {
+    process: entry,
+    runtime: inspect_process_runtime(entry),
+    process_group_members: [],
+    child_processes: [],
+  }
 }
 
 ///|

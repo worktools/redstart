@@ -41,8 +41,20 @@ pub struct ProcessGroupMember {
 } derive(ToJson, Debug)
 
 ///|
+pub struct ProcessRuntimeDiagnostics {
+  tracked_pid : Int?
+  tracked_pid_alive : Bool
+  process_group_alive : Bool
+  pid_file_pid : Int?
+  pid_file_alive : Bool
+  cwd_exists : Bool
+  anomalies : Array[String]
+} derive(ToJson, Debug)
+
+///|
 pub struct ProcessInspectSnapshot {
   process : ProcessEntry
+  runtime : ProcessRuntimeDiagnostics
   process_group_members : Array[ProcessGroupMember]
   child_processes : Array[ProcessGroupMember]
 } derive(ToJson, Debug)
@@ -108,6 +120,25 @@ pub fn ProcessEntry::mark_failed(self : ProcessEntry) -> Unit {
 /// Update entry status to unknown (lost track of process).
 pub fn ProcessEntry::mark_unknown(self : ProcessEntry) -> Unit {
   self.status = "unknown"
+  self.pid = None
+}
+
+///|
+/// Update entry to reflect a recovered running process without changing the
+/// original started_at timestamp.
+pub fn ProcessEntry::mark_running_recovered(
+  self : ProcessEntry,
+  pid : Int,
+) -> Unit {
+  self.status = "running"
+  self.pid = Some(pid)
+  self.stopped_at = None
+  self.exit_code = None
+}
+
+///|
+/// Clear a stale tracked pid while preserving the current status.
+pub fn ProcessEntry::clear_tracked_pid(self : ProcessEntry) -> Unit {
   self.pid = None
 }
 
@@ -253,6 +284,15 @@ pub fn process_group_snapshot_path(proc : String) -> String {
 }
 
 ///|
+/// Whether the configured working directory still exists.
+pub fn process_cwd_exists(entry : ProcessEntry) -> Bool {
+  match entry.cwd {
+    None => true
+    Some(path) => @fs.path_exists(path)
+  }
+}
+
+///|
 /// Ensure the monitor directory for a process exists.
 pub fn ensure_monitor_dir(proc : String) -> Unit raise RedstartError {
   let dir = monitor_path(proc)
@@ -315,6 +355,50 @@ pub fn new_process_entry(
 /// Check if the config file exists in the current directory.
 pub fn config_file_exists() -> Bool {
   @fs.path_exists(config_file)
+}
+
+///|
+fn parse_positive_int(s : String) -> Int? {
+  let mut result = 0
+  let mut seen_digit = false
+  for c in s {
+    let n = c.to_int()
+    if n >= 48 && n <= 57 {
+      result = result * 10 + n - 48
+      seen_digit = true
+    } else {
+      return None
+    }
+  }
+  if seen_digit {
+    Some(result)
+  } else {
+    None
+  }
+}
+
+///|
+/// Read the recorded process-group leader PID for a process, if present.
+pub fn read_pid_file(proc : String) -> Int? raise RedstartError {
+  let path = pid_file_path(proc)
+  guard @fs.path_exists(path) else { return None }
+  let content = @fs.read_file_to_string(path) catch {
+    e => raise RedstartError("failed to read \{path}: \{@debug.to_repr(e)}")
+  }
+  let lines = content.split("\n").map(StringView::to_owned).collect()
+  if lines.is_empty() {
+    None
+  } else {
+    parse_positive_int(lines[0])
+  }
+}
+
+///|
+/// Read the pid file and return None on any I/O or parse failure.
+pub fn read_pid_file_or_none(proc : String) -> Int? {
+  read_pid_file(proc) catch {
+    _ => None
+  }
 }
 
 ///|

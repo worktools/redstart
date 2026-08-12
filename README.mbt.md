@@ -33,6 +33,9 @@ redstart list
 redstart logs server
 redstart logs server --stderr -n 100
 
+# Restart everything in config order
+redstart restart --all
+
 # Stop everything
 redstart stop
 ```
@@ -46,7 +49,8 @@ redstart stop
 | `redstart remove <alias\|id>`                           | Remove a stopped process                                  |
 | `redstart start [alias\|id]`                            | Start one or all stopped processes                        |
 | `redstart stop [alias\|id]`                             | Stop one or all running processes                         |
-| `redstart restart <alias\|id>`                          | Restart a process                                         |
+| `redstart restart <alias\|id>`                          | Restart one process                                       |
+| `redstart restart --all`                                 | Stop all services first, then start them in config order  |
 | `redstart list [--json]`                                | List all processes and their status                       |
 | `redstart status [alias\|id] [--json]`                  | Show status (all or specific)                             |
 | `redstart logs <alias\|id> [-n N] [--stdout\|--stderr]` | Show recent log output                                    |
